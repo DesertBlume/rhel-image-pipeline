@@ -12,7 +12,7 @@
 	  "boot_wait": "10s",
       "boot_command": [
 	  "<wait10><tab><wait5>",
-	  " inst.text inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<wait><enter>"
+	  " inst.text inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ksm.cfg<wait><enter>"
 	  ],
 	  "vmx_data": {
 		  "keyboard.present": "TRUE",
