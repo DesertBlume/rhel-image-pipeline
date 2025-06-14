@@ -9,7 +9,7 @@
       "ssh_password": "abc",
       "ssh_timeout": "30m",
       "http_directory": "http",
-	  "boot wait": "10s",
+	  "boot_wait": "10s",
       "boot_command": [
 		"<esc><wait5><wait5><tab><wait5>",
 		" inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<wait5><enter>"
