@@ -11,10 +11,15 @@
       "http_directory": "http",
 	  "boot_wait": "10s",
       "boot_command": [
-		"<esc><wait5><wait5><tab><wait5>",
+		"<esc><wait20><wait20><tab><wait20>",
 		" inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<wait5><enter>"
 	   ],
-
+	  "vmx_data": {
+		  "keyboard.present": "TRUE",
+		  "mouse.present": "FALSE",
+		  "gui.exitonCLIHLT": "TRUE",
+		  "bios.bootDelay": "3000"
+	  },
       "shutdown_command": "shutdown -P now",
       "vm_name": "rhel8-base",
       "disk_size": 40960,
