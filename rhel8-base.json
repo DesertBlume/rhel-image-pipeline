@@ -3,18 +3,20 @@
     {
       "type": "vmware-iso",
       "iso_url": "C:/Users/Home/Desktop/packer-rhel-lab/iso/rhel-8.1-x86_64-dvd.iso",
-      "iso_checksum": "auto",
+      "iso_checksum": "sha256:5A0FE856ADA91EFA7015CC4CF10567DCD8857E75818FAC1C0EC18F68368E3DB4",
       "communicator": "ssh",
       "ssh_username": "root",
       "ssh_password": "abc",
       "ssh_timeout": "30m",
       "http_directory": "http",
       "boot_command": [
-        "<tab> inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<enter>"
-      ],
+		"<wait10><esc><wait><tab><wait>",
+		" inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<enter>"
+	   ],
+
       "shutdown_command": "shutdown -P now",
       "vm_name": "rhel8-base",
-      "disk_size": 20960,
+      "disk_size": 40960,
       "memory": 8000,
       "cpus": 2,
       "guest_os_type": "rhel8-64",
