@@ -1,0 +1,47 @@
+{
+  "builders": [
+    {
+      "type": "vmware-iso",
+
+      "iso_url": "C:/Users/Home/Desktop/packer-rhel-lab/iso/rhel8.1-auto-gui.iso",
+      "iso_checksum": "none",
+
+      "communicator": "ssh",
+      "ssh_username": "root",
+      "ssh_password": "abc",
+      "ssh_timeout": "30m",
+
+      "vm_name": "rhel8-base",
+      "guest_os_type": "rhel8-64",
+      "disk_size": 40960,
+      "memory": 8000,
+      "cpus": 2,
+      "output_directory": "output-rhel8-base",
+
+      "headless": false,
+      "boot_wait": "0s",
+      "boot_command": [],
+      "shutdown_command": "shutdown -P now",
+
+      "network_adapters": [
+        {
+          "network": "custom",
+          "virtual_network": "VMnet8",
+          "adapter_type": "vmxnet3"
+        },
+        {
+          "network": "custom",
+          "virtual_network": "VMnet2",
+          "adapter_type": "vmxnet3"
+        }
+      ],
+
+      "vmx_data": {
+        "keyboard.present": "TRUE",
+        "mouse.present": "FALSE",
+        "gui.exitonCLIHLT": "TRUE",
+        "bios.bootDelay": "8000"
+      }
+    }
+  ]
+}
