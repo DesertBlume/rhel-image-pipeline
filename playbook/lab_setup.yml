@@ -1,0 +1,170 @@
+---
+- hosts: localhost
+  become: yes
+  vars:
+    # Customize these lab variables:
+    magic_number: 48                 # <--- CHANGE this to your assigned magic number
+    domain: "example{{ magic_number }}.lab"
+    server_ip: "172.16.30.{{ magic_number }}"
+    client_ip: "172.16.31.{{ magic_number }}"
+    red_net_cidr: "172.16.0.0/16"
+    lab_username: "cst8246"
+    lab_password_plain: "cst8246"
+    lab_password_hash: "{{ lab_password_plain | password_hash('sha512') }}"
+  tasks:
+    - name: Install required packages (DNS server and others)
+      package:
+        name:
+          - bind
+          - bind-utils
+          - openssh-server
+        state: present
+
+    - name: Ensure NetworkManager is running (for interface management)
+      service:
+        name: NetworkManager
+        state: started
+        enabled: yes
+
+    - name: Configure DHCP on ens160 (Blue network)
+      copy:
+        dest: /etc/sysconfig/network-scripts/ifcfg-ens160
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          TYPE=Ethernet
+          BOOTPROTO=dhcp
+          DEFROUTE=yes
+          IPV6INIT=no
+          NAME=ens160
+          DEVICE=ens160
+          ONBOOT=yes
+
+    - name: Configure static IP on ens192 (Red network)
+      copy:
+        dest: /etc/sysconfig/network-scripts/ifcfg-ens224
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          TYPE=Ethernet
+          BOOTPROTO=none
+          IPADDR={{ server_ip }}
+          NETMASK=255.255.0.0
+          DEFROUTE=no
+          IPV6INIT=no
+          NAME=ens192
+          DEVICE=ens192
+          ONBOOT=yes
+
+    - name: Bring up the ens192 interface with static IP
+      shell: |
+        nmcli connection reload 
+        nmcli connection up ens192
+      args:
+        warn: false
+      register: bringup_result
+
+    - name: Create lab user account with sudo privileges
+      user:
+        name: "{{ lab_username }}"
+        password: "{{ lab_password_hash }}"
+        groups: wheel
+        state: present
+      # The lab recommends a dedicated user 'cst8246' with password 'cst8246' and wheel group:contentReference[oaicite:11]{index=11}.
+
+    - name: Allow wheel group sudo without password (optional)
+      lineinfile:
+        path: /etc/sudoers
+        regexp: '^%wheel'
+        line: '%wheel        ALL=(ALL)       NOPASSWD: ALL'
+        state: present
+      validate: '/usr/sbin/visudo -cf %s'
+
+    - name: Enable and start SSH service
+      service:
+        name: sshd
+        state: started
+        enabled: yes
+
+    - name: Permit root login over SSH with password
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin yes'
+        state: present
+      notify: Restart SSH
+
+    - name: Configure BIND (DNS server options and zones)
+      copy:
+        dest: /etc/named.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          options {
+              directory "/var/named";
+              listen-on port 53 { 127.0.0.1; {{ server_ip }}; };
+              allow-query     { localhost; {{ red_net_cidr }}; };
+              allow-recursion { localhost; {{ red_net_cidr }}; };
+              recursion yes;
+          };
+          zone "{{ domain }}" IN {
+              type master;
+              file "{{ domain }}.zone";
+          };
+          zone "16.172.in-addr.arpa" IN {
+              type master;
+              file "named.16.172";
+          };
+          include "/etc/named.rfc1912.zones";
+          include "/etc/named.root.key";
+
+    - name: Create forward DNS zone file for {{ domain }}
+      copy:
+        dest: "/var/named/{{ domain }}.zone"
+        owner: root
+        group: named
+        mode: '0640'
+        content: |
+          $TTL 1D
+          @   IN SOA   ns1.{{ domain }}. root.{{ domain }}. (
+                  0        ; serial (to be incremented after changes)
+                  1D       ; refresh
+                  1H       ; retry
+                  1W       ; expire
+                  3H )     ; minimum
+              IN NS    ns1.{{ domain }}.
+          ns1 IN A     {{ server_ip }}
+          client IN A  {{ client_ip }}
+
+    - name: Create reverse DNS zone file for 172.16/16
+      copy:
+        dest: "/var/named/named.16.172"
+        owner: root
+        group: named
+        mode: '0640'
+        content: |
+          $TTL 1D
+          @   IN SOA   ns1.{{ domain }}. root.{{ domain }}. (
+                  0        ; serial
+                  1D       ; refresh
+                  1H       ; retry
+                  1W       ; expire
+                  3H )     ; minimum
+              IN NS    ns1.{{ domain }}.
+          {{ magic_number }}.30   IN PTR   ns1.{{ domain }}.
+          {{ magic_number }}.31   IN PTR   client.{{ domain }}.
+
+    - name: Enable and start DNS service (named)
+      service:
+        name: named
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: Restart SSH
+      service:
+        name: sshd
+        state: restarted
