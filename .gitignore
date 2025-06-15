@@ -1,0 +1,10 @@
+*.iso
+*.lock
+packer_cache/
+output-*/
+*.ova
+*.vmdk
+*.qcow2
+*.log
+*.img
+*.bak

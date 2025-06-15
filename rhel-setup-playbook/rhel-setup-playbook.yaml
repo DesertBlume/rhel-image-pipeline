@@ -1,0 +1,107 @@
+---
+- name: Configure RHEL Base Server
+  hosts: all
+  become: yes
+
+  vars:
+    dns_domain: "example48.lab"
+    ip_static: "172.16.30.48"
+    ip_netmask: "255.255.0.0"
+    hostname_fqdn: "haja0013-SRV.example48.lab"
+    lab_user: "lab"
+    lab_pass: "$6$rounds=100000$abcdefg$3dE3RZKAbFJ9j6HlmiUqMyK7eO3XYDKVPGOR0LTLokhBtVUS6C6dx9auEt8cKy7Z2.4EDK1Ut58x5PXFjKUYP."
+
+  tasks:
+
+    - name: Set hostname
+      ansible.builtin.hostname:
+        name: "{{ hostname_fqdn }}"
+
+    - name: Configure static IP (ens192)
+      ansible.builtin.template:
+        src: ifcfg-ens192.j2
+        dest: /etc/sysconfig/network-scripts/ifcfg-ens192
+
+    - name: Restart network
+      ansible.builtin.service:
+        name: NetworkManager
+        state: restarted
+
+    - name: Install required packages
+      ansible.builtin.dnf:
+        name:
+          - openssh-server
+          - iptables-services
+          - bind
+          - bind-utils
+        state: present
+
+    - name: Enable and start SSH
+      ansible.builtin.service:
+        name: sshd
+        enabled: true
+        state: started
+
+    - name: Create lab user
+      ansible.builtin.user:
+        name: "{{ lab_user }}"
+        password: "{{ lab_pass }}"
+        groups: wheel
+        shell: /bin/bash
+        state: present
+
+    - name: Setup iptables rules
+      ansible.builtin.copy:
+        dest: /etc/sysconfig/iptables
+        content: |
+          *filter
+          :INPUT ACCEPT [0:0]
+          :FORWARD ACCEPT [0:0]
+          :OUTPUT ACCEPT [0:0]
+          -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+          -A INPUT -p tcp --dport 22 -j ACCEPT
+          -A INPUT -p tcp --dport 53 -j ACCEPT
+          -A INPUT -p udp --dport 53 -j ACCEPT
+          -A INPUT -i lo -j ACCEPT
+          -A INPUT -j DROP
+          COMMIT
+
+    - name: Enable iptables
+      ansible.builtin.service:
+        name: iptables
+        enabled: true
+        state: started
+
+    - name: Configure named.conf
+      ansible.builtin.template:
+        src: named.conf.j2
+        dest: /etc/named.conf
+
+    - name: Add forward zone file
+      ansible.builtin.copy:
+        dest: /var/named/{{ dns_domain }}.zone
+        content: |
+          $TTL 86400
+          @   IN  SOA ns1.{{ dns_domain }}. root.{{ dns_domain }}. (
+                  2025061401  ; Serial
+                  3600        ; Refresh
+                  1800        ; Retry
+                  604800      ; Expire
+                  86400 )     ; Minimum
+
+              IN  NS  ns1.{{ dns_domain }}.
+          ns1 IN  A   {{ ip_static }}
+          ftp IN  A   172.16.32.48
+
+    - name: Set correct permissions on zone file
+      ansible.builtin.file:
+        path: /var/named/{{ dns_domain }}.zone
+        owner: named
+        group: named
+        mode: '0644'
+
+    - name: Enable and start named
+      ansible.builtin.service:
+        name: named
+        enabled: true
+        state: started

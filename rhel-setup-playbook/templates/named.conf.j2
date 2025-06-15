@@ -1,0 +1,17 @@
+options {
+    directory "/var/named";
+    allow-query { any; };
+    recursion yes;
+};
+
+zone "example48.lab" IN {
+    type master;
+    file "example48.lab.zone";
+    allow-update { none; };
+};
+
+zone "30.16.172.in-addr.arpa" IN {
+    type master;
+    file "example48.lab.rev";
+    allow-update { none; };
+};
