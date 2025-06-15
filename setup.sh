@@ -2,8 +2,7 @@
 set -e
 
 echo "[Setup] Registering system with Red Hat..."
-subscription-manager register --username haja0013@algonquinlive.com --password 'rd*37BL-73hh_10' --auto-attach
-subscription-manager refresh
+
 
 echo "[Setup] Installing Ansible, Git, and basic tools..."
 dnf install -y git ansible net-tools bind-utils vim
